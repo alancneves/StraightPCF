@@ -32,13 +32,9 @@ def patch_based_denoise(model, pcl_noisy, patch_size=1000, seed_k=6, seed_k_alph
     patch_dists = patch_dists / patch_dists[:, -1].unsqueeze(1).repeat(1, patch_size)
 
     all_dists = torch.ones(num_patches, N) / 0
-    all_dists = all_dists.cuda()
-    all_dists = list(all_dists)
-    patch_dists, point_idxs_in_main_pcd = list(patch_dists), list(point_idxs_in_main_pcd)
-    
-    for all_dist, patch_id, patch_dist in zip(all_dists, point_idxs_in_main_pcd, patch_dists): 
+    all_dists, patch_dists, point_idxs_in_main_pcd = list(all_dists.cpu()), list(patch_dists.cpu()), list(point_idxs_in_main_pcd.cpu())   
+    for all_dist, patch_id, patch_dist in zip(all_dists, point_idxs_in_main_pcd, patch_dists):
         all_dist[patch_id] = patch_dist
-
     all_dists = torch.stack(all_dists,dim=0)
     weights = torch.exp(-1 * all_dists)
 
@@ -46,14 +42,14 @@ def patch_based_denoise(model, pcl_noisy, patch_size=1000, seed_k=6, seed_k_alph
     patches_denoised = []
 
     # Denoising
-    i = 0
     patch_step = int(N / (seed_k_alpha * patch_size))
     assert patch_step > 0, "Seed_k_alpha needs to be decreased to increase patch_step!"
-    while i < num_patches:
+    for i in tqdm(range(0,num_patches,patch_step)):
         # print("Processed {:d}/{:d} patches.".format(i, num_patches))
         curr_patches = patches[i:i+patch_step]
         try:
             patches_denoised_temp, _ = model.denoise_langevin_dynamics(curr_patches)
+            patches_denoised.append(patches_denoised_temp)
         except Exception as e:
             print("="*100)
             print(e)
@@ -65,15 +61,12 @@ def patch_based_denoise(model, pcl_noisy, patch_size=1000, seed_k=6, seed_k_alph
             print("Additionally, if using multiple args.niters and a PyTorch3D ops, KNN, error arises, Seed_k might need to be increased to sample more patches for inference!")
             print("="*100)
             return
-        patches_denoised.append(patches_denoised_temp)
-        i += patch_step
 
     patches_denoised = torch.cat(patches_denoised, dim=0)
     patches_denoised = patches_denoised + seed_pnts_1
     
     # Patch stitching
     pcl_denoised = [patches_denoised[patch][point_idxs_in_main_pcd[patch] == pidx_in_main_pcd] for pidx_in_main_pcd, patch in enumerate(best_weights_idx)]
-
     pcl_denoised = torch.cat(pcl_denoised, dim=0)
 
     return pcl_denoised

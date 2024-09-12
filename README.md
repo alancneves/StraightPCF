@@ -32,6 +32,12 @@ pip install torchsummary
 conda install pytorch-cluster -c pyg
 ```
 
+or just use the provided `Dockerfile`:
+
+```bash
+docker build --compress --rm -t straight_pcf .
+```
+
 # Data
 Our data is the same as ``Score-Based Point Cloud Denoising`` by Shitong Luo and Wei Hu. Kudos to them for their excellent implementation and resources. Please check their GitHub repo [here](https://github.com/luost26/score-denoise). We will also make the data available as a zip file, for ease of use. Please download the code and place it within ```./data```.
 
@@ -56,6 +62,9 @@ python test_straightpcf.py --niters=3 --seed_k=6 --seed_k_alpha=1 --dataset='PCN
 
 You should get the results on the terminal. The evaluation code is within ```./utils/valuate.py```. The output from the network is stored at ```./data/results```.
 
+### Inference on you own pointcloud
+
+
 ## Train the network
 Training the full network is a 3 step process:
 
@@ -75,6 +84,12 @@ python train_straightpcf.py --val_freq=2000 --train_cvm_network=True --feat_embe
 ```
 
 The folder for each training run is placed within ```./logs``` and you can access the necessary checkpoints there. 
+
+### Fine-tunning your datasets using pre-trained weights
+
+
+
+
 
 ## Acknowledgement and citation
 Our code is partially based on ``Score-Based Point Cloud Denoising`` by Shitong Luo and Wei Hu. Kudos to them for their excellent implementation and resources. Please check their GitHub repo [here](https://github.com/luost26/score-denoise).

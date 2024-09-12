@@ -3,7 +3,8 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset
 from tqdm.auto import tqdm
-
+from pathlib import Path
+from plyfile import PlyData
 
 class PointCloudDataset(Dataset):
 
@@ -14,12 +15,8 @@ class PointCloudDataset(Dataset):
         self.pointclouds = []
         self.pointcloud_names = []
         for fn in tqdm(os.listdir(self.pcl_dir), desc='Loading'):
-            if fn[-3:] != 'xyz':
-                continue
             pcl_path = os.path.join(self.pcl_dir, fn)
-            if not os.path.exists(pcl_path):
-                raise FileNotFoundError('File not found: %s' % pcl_path)
-            pcl = torch.FloatTensor(np.loadtxt(pcl_path, dtype=np.float32))
+            pcl = torch.FloatTensor(load_pcd(pcl_path))
             self.pointclouds.append(pcl)
             self.pointcloud_names.append(fn[:-4])
 
@@ -35,3 +32,21 @@ class PointCloudDataset(Dataset):
             data = self.transform(data)
         return data
 
+
+def load_pcd(filepath: str) -> np.array:
+    data = None
+    ext = Path(filepath).suffix
+    if not Path(filepath).is_file():
+        raise FileNotFoundError(f"File {filepath} not found!")
+
+    if ext == '.txt' or ext == '.xyz':
+        data = np.genfromtxt(filepath, dtype=np.float32)
+    elif ext == '.npy' or ext == '.npz':
+        data = np.load(filepath).as_type(np.float32)
+    elif ext == '.ply':
+        plydata = PlyData.read("antenna_nerfhuge_1m_nerf.ply")
+        data = np.array(plydata['vertex'].data[['x','y','z']].tolist(), dtype=np.float32)
+    else:
+        raise NotImplementedError(f"Files with ext {ext} are not allowed!")
+
+    return data
